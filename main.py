@@ -88,27 +88,6 @@ def fall_filtering():
     match_list_input(id_list, team_list, odds_list, match_list)
 
 
-def betting_system():
-    sheet_wb = load_workbook("September.xlsx")
-    sheet_ws = sheet_wb['경기리스트']
-
-    row_count = 1
-
-    while sheet_ws.cell(row_count, 2).value is not None:
-        if driver.find_element_by_id(sheet_ws.cell(row_count, 2).value):
-            driver.find_element_by_id(sheet_ws.cell(row_count, 2).value).click()
-        else:
-            pass
-        row_count += 1
-
-    driver.find_element_by_id('nAmt').send_keys("100000")
-    driver.find_element_by_xpath('//*[@id="cart"]/div[3]/button').send_keys(Keys.ENTER)
-    time.sleep(1)
-    alert = Alert(driver)
-    alert.accept()
-
-
-
 # 엑셀 파일에 저장
 # user_data1 = 아이디, user_data2 = 팀 이름, user_data3 = 팀 배당, user_data4 = 경기 시간
 def match_list_input(user_data1, user_data2, user_data3, user_data4):
@@ -133,9 +112,81 @@ def match_list_input(user_data1, user_data2, user_data3, user_data4):
     sheet_wb.save("September.xlsx")
 
 
+# 경기 목록 리스트업 후 사용자의 입력을 받아 베팅 진행
+def betting_system():
+    sheet_wb = load_workbook("September.xlsx")
+    sheet_ws = sheet_wb['경기리스트']
+
+    row_count = 1
+
+    while sheet_ws.cell(row_count, 2).value is not None:
+        # now_filtering = datetime.datetime.now() - datetime.datetime.strptime(sheet_ws.cell(row_count, 1).value, "%y-%M-%d %H:%M")
+        match = sheet_ws.cell(row_count, 1).value
+        match_datetime = datetime.datetime.strptime(match, "%Y-%m-%d %H:%M")
+        difference = match_datetime - datetime.datetime.now()
+        if int(difference.days) == 0:
+            print(str(row_count) + "       " + sheet_ws.cell(row_count, 1).value + sheet_ws.cell(row_count, 2).value
+                  + sheet_ws.cell(row_count, 3).value + sheet_ws.cell(row_count, 4).value)
+        row_count += 1
+
+    input_match_no = int(input("경기를 골라주세요: "))
+    input_account = input("금액을 입력해주세요: ")
+
+    # if driver.find_element_by_id(sheet_ws.cell(input_match_no, 2).value):
+    #     driver.find_element_by_id(sheet_ws.cell(input_match_no, 2).value).click()
+    # else:
+    #     pass
+    #
+    # driver.find_element_by_id('nAmt').send_keys(input_account)
+    # driver.find_element_by_xpath('//*[@id="cart"]/div[3]/button').send_keys(Keys.ENTER)
+    # time.sleep(1)
+    # alert = Alert(driver)
+    # alert.accept()
+
+
+def results_check():
+    home_win_list, draw_win_list, away_win_list = [], [], []
+    team_list, match_list = [], []
+
+    page_count = 0
+
+    url = "https://fall-mvp.com/main/result/D/"
+    url_a = ".html"
+
+    while page_count < 101:
+        com_url = url + str(page_count) + url_a
+
+        driver.get(com_url)
+        r = driver.page_source
+        soup = BeautifulSoup(r, 'html.parser')
+
+        for top in soup.find_all('li', class_='g_home_ed g_gr_o'):
+            for mid in top.find_all('span', class_='g_home_o'):
+                home_win_list.append(mid.get_text().strip())
+        for top in soup.find_all('li', class_='g_away_ed g_gr_o'):
+            for mid in top.find_all('span', class_='g_away_o'):
+                away_win_list.append(mid.get_text().strip())
+        page_count += 25
+
+    sheet_wb = load_workbook("September.xlsx")
+    sheet_ws = sheet_wb['경기리스트']
+
+    row_count = 1
+
+    while sheet_ws.cell(row_count, 1).value is not None:
+        if sheet_ws.cell(row_count, 3).value in home_win_list or sheet_ws.cell(row_count, 3).value in away_win_list:
+            sheet_ws.cell(row_count, 5).value = "적중"
+        row_count += 1
+
+    sheet_wb.save("September.xlsx")
+
+
 if __name__ == '__main__':
-    driver = webdriver.Chrome(ChromeDriverManager().install())
-    if not today_quota_check():
-        if fall_login():
-            fall_filtering()
-            betting_system()
+    # driver = webdriver.Chrome(ChromeDriverManager().install())
+    # if fall_login():
+    betting_system()
+    #     fall_filtering()
+    #     results_check()
+
+
+# 베팅 전 목록 리스트업 과정에서 현재 시간보다 지난 경기 제외
