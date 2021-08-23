@@ -94,14 +94,14 @@ def fall_filtering():
 def match_list_input(user_data1, user_data2, user_data3, user_data4):
     user_list_1 = []
 
-    sql = "select match_time from match_list"
+    sql = "select team from match_list"
     cursor.execute(sql)
     conn.commit()
 
     datas = cursor.fetchall()
 
-    for match in datas:
-        user_list_1.append(match)
+    for team in datas:
+        user_list_1.append(team)
 
     for match, source_id, team, odds in zip(user_data4, user_data1, user_data2, user_data3):
         if team not in user_list_1:
@@ -116,7 +116,7 @@ def betting_listup():
     betting_flag = False
     no_list, time_list, source_id_list, team_list, odds_list = [], [], [], [], []
 
-    sql = "select no, match_time, source_id, team, odds from match_list"
+    sql = "select no, match_time, team, odds from match_list"
     cursor.execute(sql)
 
     datas = cursor.fetchall()
@@ -130,20 +130,17 @@ def betting_listup():
     for no, match, team, odds in zip(no_list, time_list, team_list, odds_list):
         difference = match-datetime.datetime.now()
 
-        if int(difference.days) != 0:
+        if int(difference.days) == 0:
             print(str(no) + "      " + str(match) + " " + str(team) + " " + str(odds))
 
     input_match_no = int(input("경기를 골라주세요: "))
     input_account = input("금액을 입력해주세요: ")
 
-    sql = "select source_id, team, odds match_list where %s"
-    condition = "no=" + str(input_match_no)
-
-    cursor.execute(sql, condition)
+    sql = "select source_id, team, odds from match_list where no=" + "'" + str(input_match_no) + "'"
+    cursor.execute(sql)
     conn.commit()
 
     datas = cursor.fetchall()
-
     # 입력받은 경기, 베팅금액을 DB에 저장
     for source_id, team, odds in datas:
         if driver.find_element_by_id(source_id):
@@ -158,6 +155,9 @@ def betting_listup():
             if "확인" in str(alert.text):
                 alert.accept()
                 betting_content_insert(team, odds, input_account)
+            else:
+                alert.accept()
+                print('다시 확인해주세요')
         else:
             pass
 
@@ -186,11 +186,9 @@ def results_check():
                 win_list.append(mid.get_text().strip())
         page_count += 25
 
-    sql = "update match_list set result=True where %s"
-
     for win_team in win_list:
-        condition = "team=" + str(win_team)
-        cursor.execute(sql, condition)
+        sql = "update match_list set result=True where team=" + "'" + str(win_team) + "'"
+        cursor.execute(sql)
         conn.commit()
 
     betting_content_modify()
@@ -198,7 +196,7 @@ def results_check():
 
 # user_data1 = 팀 이름, user_data2 = 배당률, user_data3 = 베팅 금액
 def betting_content_insert(user_data1, user_data2, user_data3):
-    sql = "insert into (team, odds, amount) values (%s, %s, %s)"
+    sql = "insert into betting_data (team, odds, amount) values (%s, %s, %s)"
     values = user_data1, user_data2, user_data3
 
     cursor.execute(sql, values)
@@ -240,12 +238,16 @@ if __name__ == '__main__':
     driver = webdriver.Chrome(ChromeDriverManager().install())
     conn = pymysql.connect(host='localhost', user='root', password="Joker0422!", db="project")
     cursor = conn.cursor()
+    mode = int(input("모드를 선택하세요: (1. 베팅, 2. 빅데이터)"))
 
-    betting_listup()
-    # if fall_login():
-    #     fall_filtering()
-        # betting_listup()
-        # results_check()
+    while True:
+        if fall_login():
+            fall_filtering()
+            if mode is 1:
+                betting_listup()
+            else:
+                results_check()
+        time.sleep(3600)
 
 
 # 베팅 전 목록 리스트업 과정에서 현재 시간보다 지난 경기 제외
